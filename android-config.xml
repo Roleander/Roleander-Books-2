@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.roleander.app" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>Roleander</name>
+    <description>Interactive Audiobook App with Voice Recognition</description>
+    <author email="your-email@example.com" href="https://your-website.com">Your Name</author>
+
+    <content src="index.html" />
+
+    <access origin="*" />
+    <allow-navigation href="*" />
+    <allow-intent href="*" />
+
+    <!-- Android permissions for speech recognition -->
+    <platform name="android">
+        <config-file target="AndroidManifest.xml" parent="/*">
+            <uses-permission android:name="android.permission.RECORD_AUDIO" />
+            <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+        </config-file>
+
+        <!-- Speech recognition plugin -->
+        <plugin name="cordova-plugin-speechrecognition" spec="^1.2.0">
+            <variable name="MICROPHONE_USAGE_DESCRIPTION" value="This app needs microphone access for voice recognition features" />
+        </plugin>
+
+        <!-- Additional Android configurations -->
+        <preference name="android-minSdkVersion" value="21" />
+        <preference name="android-targetSdkVersion" value="33" />
+        <preference name="android-compileSdkVersion" value="33" />
+
+        <!-- Enable hardware acceleration for better performance -->
+        <config-file target="AndroidManifest.xml" parent="application">
+            <activity android:hardwareAccelerated="true" />
+        </config-file>
+    </platform>
+
+    <!-- iOS permissions (if needed) -->
+    <platform name="ios">
+        <config-file target="*-Info.plist" parent="NSMicrophoneUsageDescription">
+            <string>This app needs microphone access for voice recognition features</string>
+        </config-file>
+        <config-file target="*-Info.plist" parent="NSSpeechRecognitionUsageDescription">
+            <string>This app needs speech recognition for voice commands</string>
+        </config-file>
+    </platform>
+
+    <!-- Plugin configurations -->
+    <plugin name="cordova-plugin-whitelist" spec="^1.3.4" />
+    <plugin name="cordova-plugin-android-permissions" spec="^1.1.5" />
+
+    <!-- Build preferences -->
+    <preference name="phonegap-version" value="cli-11.0.0" />
+    <preference name="pg:config-file" value="config.xml" />
+</widget>

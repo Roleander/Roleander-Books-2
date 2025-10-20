@@ -88,6 +88,11 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null)
   const [showDice, setShowDice] = useState(false)
   const [diceResult, setDiceResult] = useState<number | null>(null)
+  const [audioCues, setAudioCues] = useState<any[]>([])
+  const [processedCues, setProcessedCues] = useState<Set<string>>(new Set())
+  const [voiceCommands, setVoiceCommands] = useState<any[]>([])
+  const [showVoiceButton, setShowVoiceButton] = useState(false)
+  const [isListening, setIsListening] = useState(false)
 
   const audioRef = useRef<HTMLAudioElement>(null)
   const progressUpdateRef = useRef<NodeJS.Timeout>()
@@ -148,6 +153,40 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
 
       if (choicesError) throw choicesError
       setChoices(choicesData || [])
+
+      // Fetch audio cues for this audiobook
+      const { data: cuesData, error: cuesError } = await supabase
+        .from("audio_cues")
+        .select(`
+          *,
+          item:items(name, item_type, rarity)
+        `)
+        .eq("audiobook_id", audiobookId)
+        .order("cue_timestamp_seconds")
+
+      if (cuesError) {
+        console.warn("Error fetching audio cues:", cuesError)
+      } else {
+        setAudioCues(cuesData || [])
+        console.log("[Items] Loaded audio cues:", cuesData?.length || 0)
+      }
+
+      // Fetch voice commands
+      const { data: commandsData, error: commandsError } = await supabase
+        .from("voice_commands")
+        .select(`
+          *,
+          item:items(name, item_type, rarity)
+        `)
+        .eq("is_active", true)
+
+      if (commandsError) {
+        console.warn("Error fetching voice commands:", commandsError)
+      } else {
+        setVoiceCommands(commandsData || [])
+        setShowVoiceButton((commandsData?.length || 0) > 0)
+        console.log("[Items] Loaded voice commands:", commandsData?.length || 0)
+      }
 
       if (user) {
         const { data: progressData, error: progressError } = await supabase
@@ -217,6 +256,9 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
           if (choices.length > 0 && timeRemaining <= 30 && timeRemaining > 0 && !showChoices) {
             setShowChoices(true)
           }
+
+          // Check for audio cues
+          checkAudioCues(currentTime)
         }
       }, 1000)
     } catch (error) {
@@ -315,8 +357,70 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
     }
   }
 
+  // Audio cue detection function
+  const checkAudioCues = async (currentTime: number) => {
+    if (!user || !selectedCharacterId) return
+
+    audioCues.forEach(async (cue) => {
+      if (cue.auto_acquire &&
+          Math.abs(currentTime - cue.cue_timestamp_seconds) < 1 &&
+          !processedCues.has(cue.id)) {
+
+        console.log('[Items] Audio cue triggered:', cue.cue_text || `Acquired ${cue.item?.name}`)
+
+        try {
+          // Acquire the item
+          await supabase.rpc('acquire_item', {
+            p_character_id: selectedCharacterId,
+            p_item_id: cue.item_id,
+            p_quantity: 1,
+            p_acquired_method: 'audio_cue'
+          })
+
+          // Mark as processed
+          setProcessedCues(prev => new Set([...prev, cue.id]))
+
+          // Show notification
+          const notificationText = cue.cue_text || `✨ ${cue.item?.name} acquired!`
+          console.log('[Items] Item acquired via audio cue:', notificationText)
+
+          // You could add a toast notification here
+          alert(notificationText)
+
+        } catch (error) {
+          console.error('[Items] Error acquiring item from audio cue:', error)
+        }
+      }
+    })
+  }
+
   const handleVoiceCommand = (command: string) => {
     const lowerCommand = command.toLowerCase().trim()
+
+    // Item acquisition commands
+    const itemCommand = voiceCommands.find(vc =>
+      lowerCommand.includes(vc.command_text.toLowerCase()) ||
+      vc.command_text.toLowerCase().includes(lowerCommand)
+    )
+
+    if (itemCommand && user && selectedCharacterId) {
+      console.log('[Items] Voice command triggered for item:', itemCommand.item?.name)
+
+      supabase.rpc('acquire_item', {
+        p_character_id: selectedCharacterId,
+        p_item_id: itemCommand.item_id,
+        p_quantity: 1,
+        p_acquired_method: 'voice_command'
+      }).then(() => {
+        const notificationText = `🎤 ${itemCommand.item?.name} acquired via voice command!`
+        console.log('[Items] Item acquired via voice:', notificationText)
+        alert(notificationText)
+      }).catch((error: any) => {
+        console.error('[Items] Error acquiring item via voice:', error)
+      })
+
+      return
+    }
 
     // 3D Scene commands
     if (lowerCommand.includes("show 3d") || lowerCommand.includes("3d scene") || lowerCommand.includes("companion")) {
@@ -746,10 +850,24 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
                     onClick={() => setIsVoiceEnabled(!isVoiceEnabled)}
                     className="leading-7 text-left rounded-full flex-row gap-0 w-12"
                     disabled={!isAudioReady}
+                    title="Voice commands for items and controls"
                   >
                     {isVoiceEnabled ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
                     Voz
                   </Button>
+
+                  {showVoiceButton && (
+                    <Button
+                      variant={isListening ? "default" : "outline"}
+                      onClick={() => setIsListening(!isListening)}
+                      className="leading-7 text-left rounded-full flex-row gap-0 w-12"
+                      disabled={!isAudioReady}
+                      title="Voice commands for item acquisition"
+                    >
+                      <Mic className="h-4 w-4" />
+                      🎒
+                    </Button>
+                  )}
 
                   {user && (
                     <Button
@@ -806,6 +924,7 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
             "hide dice",
             ...choices.map((c) => c.voice_command),
             ...choices.map((c) => c.choice_number.toString()),
+            ...voiceCommands.map((vc) => vc.command_text),
           ]}
           customCommands={customCommands}
           enableWakeWord={false}

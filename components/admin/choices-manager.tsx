@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { createClient } from "@/lib/supabase/client"
-import { Plus, GitBranch, Trash2, Edit, X } from "lucide-react"
+import { Plus, GitBranch, Trash2, Edit, X, Dice6 } from "lucide-react"
 
 interface Audiobook {
   id: string
@@ -24,9 +24,20 @@ interface Choice {
   choice_text: string
   choice_number: number
   voice_command: string
+  next_audiobook_id?: string | null
   audiobook: { title: string; series: { title: string } }
   next_audiobook: { title: string } | null
   source_audiobooks?: { id: string; title: string; series: { title: string } }[]
+  choice_type?: 'standard' | 'dice'
+  dice_outcomes?: DiceOutcome[]
+}
+
+interface DiceOutcome {
+  id: string
+  min_roll: number
+  max_roll: number
+  next_audiobook_id: string
+  outcome_description: string
 }
 
 export function ChoicesManager() {
@@ -41,6 +52,8 @@ export function ChoicesManager() {
     choice_number: 1,
     voice_command: "",
     next_audiobook_id: "",
+    choice_type: 'standard' as 'standard' | 'dice',
+    dice_outcomes: [] as DiceOutcome[],
   })
 
   const supabase = createClient()
@@ -85,6 +98,13 @@ export function ChoicesManager() {
               title,
               series:series_id (title)
             )
+          ),
+          dice_outcomes (
+            id,
+            min_roll,
+            max_roll,
+            next_audiobook_id,
+            outcome_description
           )
         `)
         .order("created_at", { ascending: false })
@@ -95,6 +115,7 @@ export function ChoicesManager() {
         ...choice,
         source_audiobooks:
           choice.choice_sources?.map((cs: any) => cs.audiobook) || (choice.audiobook ? [choice.audiobook] : []),
+        dice_outcomes: choice.dice_outcomes || [],
       }))
 
       setChoices(transformedChoices)
@@ -115,7 +136,8 @@ export function ChoicesManager() {
             choice_text: formData.choice_text,
             choice_number: formData.choice_number,
             voice_command: formData.voice_command,
-            next_audiobook_id: formData.next_audiobook_id || null,
+            next_audiobook_id: formData.choice_type === 'standard' ? (formData.next_audiobook_id || null) : null,
+            choice_type: formData.choice_type,
           })
           .eq("id", editingChoice.id)
 
@@ -133,6 +155,25 @@ export function ChoicesManager() {
 
           if (sourcesError) throw sourcesError
         }
+
+        // Handle dice outcomes
+        if (formData.choice_type === 'dice') {
+          await supabase.from("dice_outcomes").delete().eq("choice_id", editingChoice.id)
+
+          if (formData.dice_outcomes.length > 0) {
+            const outcomesToInsert = formData.dice_outcomes.map((outcome) => ({
+              choice_id: editingChoice.id,
+              min_roll: outcome.min_roll,
+              max_roll: outcome.max_roll,
+              next_audiobook_id: outcome.next_audiobook_id || null,
+              outcome_description: outcome.outcome_description,
+            }))
+
+            const { error: outcomesError } = await supabase.from("dice_outcomes").insert(outcomesToInsert)
+
+            if (outcomesError) throw outcomesError
+          }
+        }
       } else {
         const { data: newChoice, error: insertError } = await supabase
           .from("audio_choices")
@@ -141,8 +182,9 @@ export function ChoicesManager() {
               choice_text: formData.choice_text,
               choice_number: formData.choice_number,
               voice_command: formData.voice_command,
-              next_audiobook_id: formData.next_audiobook_id || null,
+              next_audiobook_id: formData.choice_type === 'standard' ? (formData.next_audiobook_id || null) : null,
               audiobook_id: formData.source_audiobook_ids[0] || null,
+              choice_type: formData.choice_type,
             },
           ])
           .select()
@@ -159,6 +201,21 @@ export function ChoicesManager() {
           const { error: sourcesError } = await supabase.from("choice_sources").insert(sourcesToInsert)
 
           if (sourcesError) throw sourcesError
+        }
+
+        // Handle dice outcomes for new choice
+        if (formData.choice_type === 'dice' && formData.dice_outcomes.length > 0) {
+          const outcomesToInsert = formData.dice_outcomes.map((outcome) => ({
+            choice_id: newChoice.id,
+            min_roll: outcome.min_roll,
+            max_roll: outcome.max_roll,
+            next_audiobook_id: outcome.next_audiobook_id || null,
+            outcome_description: outcome.outcome_description,
+          }))
+
+          const { error: outcomesError } = await supabase.from("dice_outcomes").insert(outcomesToInsert)
+
+          if (outcomesError) throw outcomesError
         }
       }
 
@@ -179,6 +236,8 @@ export function ChoicesManager() {
       choice_number: choice.choice_number,
       voice_command: choice.voice_command,
       next_audiobook_id: choice.next_audiobook_id || "",
+      choice_type: choice.choice_type || 'standard',
+      dice_outcomes: choice.dice_outcomes || [],
     })
     setShowForm(true)
   }
@@ -202,6 +261,8 @@ export function ChoicesManager() {
       choice_number: 1,
       voice_command: "",
       next_audiobook_id: "",
+      choice_type: 'standard',
+      dice_outcomes: [],
     })
     setShowForm(false)
     setEditingChoice(null)
@@ -227,10 +288,24 @@ export function ChoicesManager() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium">Interactive Choices</h3>
-        <Button onClick={() => setShowForm(true)} className="gap-2" disabled={showForm || audiobooks.length === 0}>
-          <Plus className="h-4 w-4" />
-          Add Choice
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowForm(true)} className="gap-2" disabled={showForm || audiobooks.length === 0}>
+            <Plus className="h-4 w-4" />
+            Add Choice
+          </Button>
+          <Button
+            onClick={() => {
+              setFormData(prev => ({ ...prev, choice_type: 'dice' }))
+              setShowForm(true)
+            }}
+            className="gap-2"
+            disabled={showForm || audiobooks.length === 0}
+            variant="outline"
+          >
+            <Dice6 className="h-4 w-4" />
+            Add Dice Choice
+          </Button>
+        </div>
       </div>
 
       {audiobooks.length === 0 && (
@@ -247,7 +322,12 @@ export function ChoicesManager() {
             <CardTitle className="font-serif">
               {editingChoice ? "Edit Interactive Choice" : "Create Interactive Choice"}
             </CardTitle>
-            <CardDescription>Set up branching narrative options with voice commands</CardDescription>
+            <CardDescription>
+              {formData.choice_type === 'dice'
+                ? "Set up dice-based branching narratives with multiple outcomes"
+                : "Set up branching narrative options with voice commands"
+              }
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -307,7 +387,7 @@ export function ChoicesManager() {
                     required
                     value={formData.choice_text}
                     onChange={(e) => setFormData({ ...formData, choice_text: e.target.value })}
-                    placeholder="Go to the mysterious door"
+                    placeholder={formData.choice_type === 'dice' ? "Roll the dice to determine your fate" : "Go to the mysterious door"}
                   />
                 </div>
                 <div className="space-y-2">
@@ -324,6 +404,28 @@ export function ChoicesManager() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="choice_type">Choice Type</Label>
+                <Select
+                  value={formData.choice_type}
+                  onValueChange={(value: 'standard' | 'dice') => setFormData({ ...formData, choice_type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select choice type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="standard">Standard Choice</SelectItem>
+                    <SelectItem value="dice">Dice-Based Choice</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {formData.choice_type === 'dice'
+                    ? "Dice choices trigger a dice roll that determines which chapter the user goes to next"
+                    : "Standard choices lead directly to the selected chapter"
+                  }
+                </p>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="voice_command">Voice Command *</Label>
                 <Input
                   id="voice_command"
@@ -337,25 +439,144 @@ export function ChoicesManager() {
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="next_audiobook_id">Next Audiobook</Label>
-                <Select
-                  value={formData.next_audiobook_id}
-                  onValueChange={(value) => setFormData({ ...formData, next_audiobook_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select where this choice leads (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No next audiobook (end story)</SelectItem>
-                    {audiobooks.map((audiobook) => (
-                      <SelectItem key={audiobook.id} value={audiobook.id}>
-                        {audiobook.series?.title} - {audiobook.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {formData.choice_type === 'standard' && (
+                <div className="space-y-2">
+                  <Label htmlFor="next_audiobook_id">Next Audiobook</Label>
+                  <Select
+                    value={formData.next_audiobook_id}
+                    onValueChange={(value) => setFormData({ ...formData, next_audiobook_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select where this choice leads (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No next audiobook (end story)</SelectItem>
+                      {audiobooks.map((audiobook) => (
+                        <SelectItem key={audiobook.id} value={audiobook.id}>
+                          {audiobook.series?.title} - {audiobook.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {formData.choice_type === 'dice' && (
+                <div className="space-y-4">
+                  <Label>Dice Outcomes</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Define what happens based on the dice roll result (1-20)
+                  </p>
+
+                  {formData.dice_outcomes.map((outcome, index) => (
+                    <div key={outcome.id} className="flex gap-2 items-end p-3 border rounded-lg">
+                      <div className="flex-1">
+                        <Label className="text-xs">Roll Range</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            min="1"
+                            max="20"
+                            placeholder="Min"
+                            value={outcome.min_roll}
+                            onChange={(e) => {
+                              const newOutcomes = [...formData.dice_outcomes]
+                              newOutcomes[index].min_roll = Number.parseInt(e.target.value) || 1
+                              setFormData({ ...formData, dice_outcomes: newOutcomes })
+                            }}
+                            className="w-20"
+                          />
+                          <span className="text-sm text-muted-foreground">-</span>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="20"
+                            placeholder="Max"
+                            value={outcome.max_roll}
+                            onChange={(e) => {
+                              const newOutcomes = [...formData.dice_outcomes]
+                              newOutcomes[index].max_roll = Number.parseInt(e.target.value) || 20
+                              setFormData({ ...formData, dice_outcomes: newOutcomes })
+                            }}
+                            className="w-20"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex-1">
+                        <Label className="text-xs">Outcome Description</Label>
+                        <Input
+                          placeholder="What happens on this roll"
+                          value={outcome.outcome_description}
+                          onChange={(e) => {
+                            const newOutcomes = [...formData.dice_outcomes]
+                            newOutcomes[index].outcome_description = e.target.value
+                            setFormData({ ...formData, dice_outcomes: newOutcomes })
+                          }}
+                        />
+                      </div>
+
+                      <div className="flex-1">
+                        <Label className="text-xs">Next Chapter</Label>
+                        <Select
+                          value={outcome.next_audiobook_id}
+                          onValueChange={(value) => {
+                            const newOutcomes = [...formData.dice_outcomes]
+                            newOutcomes[index].next_audiobook_id = value
+                            setFormData({ ...formData, dice_outcomes: newOutcomes })
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select chapter" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">End story</SelectItem>
+                            {audiobooks.map((audiobook) => (
+                              <SelectItem key={audiobook.id} value={audiobook.id}>
+                                {audiobook.series?.title} - {audiobook.title}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newOutcomes = formData.dice_outcomes.filter((_, i) => i !== index)
+                          setFormData({ ...formData, dice_outcomes: newOutcomes })
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const newOutcome: DiceOutcome = {
+                        id: `outcome-${Date.now()}`,
+                        min_roll: 1,
+                        max_roll: 20,
+                        next_audiobook_id: "",
+                        outcome_description: "",
+                      }
+                      setFormData({
+                        ...formData,
+                        dice_outcomes: [...formData.dice_outcomes, newOutcome]
+                      })
+                    }}
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Dice Outcome
+                  </Button>
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <Button type="submit" disabled={isLoading || formData.source_audiobook_ids.length === 0}>
@@ -383,9 +604,16 @@ export function ChoicesManager() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <GitBranch className="h-4 w-4 text-muted-foreground" />
+                    {choice.choice_type === 'dice' ? (
+                      <Dice6 className="h-4 w-4 text-primary" />
+                    ) : (
+                      <GitBranch className="h-4 w-4 text-muted-foreground" />
+                    )}
                     <h4 className="font-medium">{choice.choice_text}</h4>
                     <Badge variant="outline">#{choice.choice_number}</Badge>
+                    {choice.choice_type === 'dice' && (
+                      <Badge className="bg-primary/10 text-primary">🎲 Dice</Badge>
+                    )}
                   </div>
                   <div className="space-y-1 text-sm text-muted-foreground">
                     <div>
@@ -409,10 +637,28 @@ export function ChoicesManager() {
                     <p>
                       <strong>Voice Command:</strong> "{choice.voice_command}"
                     </p>
-                    <p>
-                      <strong>Leads to:</strong>{" "}
-                      {choice.next_audiobook?.title || <span className="italic">End of story</span>}
-                    </p>
+                    {choice.choice_type === 'dice' ? (
+                      <div>
+                        <strong>Dice Outcomes:</strong>
+                        <div className="ml-4 mt-1 space-y-1">
+                          {choice.dice_outcomes?.map((outcome: any, index: number) => (
+                            <div key={outcome.id} className="text-sm">
+                              • {outcome.min_roll}-{outcome.max_roll}: {outcome.outcome_description}
+                              {outcome.next_audiobook_id && (
+                                <span className="text-muted-foreground">
+                                  {" "}→ {audiobooks.find(ab => ab.id === outcome.next_audiobook_id)?.title || 'Unknown'}
+                                </span>
+                              )}
+                            </div>
+                          )) || <div className="text-sm italic">No outcomes defined</div>}
+                        </div>
+                      </div>
+                    ) : (
+                      <p>
+                        <strong>Leads to:</strong>{" "}
+                        {choice.next_audiobook?.title || <span className="italic">End of story</span>}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-2 ml-4">

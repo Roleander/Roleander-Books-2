@@ -26,6 +26,7 @@ import { VoiceRecognition } from "./voice-recognition"
 import { InteractiveChoices } from "./interactive-choices"
 import { BookCharacterProgression } from "../character/book-character-progression"
 import { ThreeScene, ThreeScenePresets } from "../ui/three-scene"
+import { InteractiveDice } from "../ui/interactive-dice"
 
 interface AudioPlayerProps {
   audiobookId: string
@@ -52,6 +53,14 @@ interface Choice {
   choice_number: number
   voice_command: string
   next_audiobook_id: string | null
+  choice_type?: 'standard' | 'dice'
+  dice_outcomes?: Array<{
+    id: string
+    min_roll: number
+    max_roll: number
+    next_audiobook_id: string | null
+    outcome_description: string
+  }>
 }
 
 interface ListeningProgress {
@@ -76,6 +85,8 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
   const [isAudioReady, setIsAudioReady] = useState(false)
   const [showCharacterProgress, setShowCharacterProgress] = useState(false)
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null)
+  const [showDice, setShowDice] = useState(false)
+  const [diceResult, setDiceResult] = useState<number | null>(null)
 
   const audioRef = useRef<HTMLAudioElement>(null)
   const progressUpdateRef = useRef<NodeJS.Timeout>()
@@ -288,6 +299,14 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
       }
     }
 
+    if (choice.choice_type === 'dice') {
+      // For dice choices, trigger dice roll instead of direct navigation
+      setShowDice(true)
+      // Store the dice choice for later processing
+      setDiceResult(null) // Reset to trigger new roll
+      return
+    }
+
     if (choice.next_audiobook_id) {
       router.push(`/listen/${choice.next_audiobook_id}`)
     } else {
@@ -302,6 +321,17 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
     if (lowerCommand.includes("show 3d") || lowerCommand.includes("3d scene") || lowerCommand.includes("companion")) {
       // The 3D scene is always visible, but we could add more interactive features
       console.log("[3D] Voice command received for 3D scene")
+      return
+    }
+
+    // Dice commands
+    if (lowerCommand.includes("roll dice") || lowerCommand.includes("dice roll") || lowerCommand.includes("roll d20")) {
+      setShowDice(true)
+      return
+    }
+
+    if (lowerCommand.includes("close dice") || lowerCommand.includes("hide dice")) {
+      setShowDice(false)
       return
     }
 
@@ -732,6 +762,15 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
                       RPG
                     </Button>
                   )}
+
+                  <Button
+                    variant={showDice ? "default" : "outline"}
+                    onClick={() => setShowDice(!showDice)}
+                    className="leading-7 text-left rounded-full flex-row gap-0 w-12"
+                    title="Roll interactive dice"
+                  >
+                    🎲 Dice
+                  </Button>
                 </div>
               </div>
             </div>
@@ -759,6 +798,11 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
             "show 3d",
             "3d scene",
             "companion",
+            "roll dice",
+            "dice roll",
+            "roll d20",
+            "close dice",
+            "hide dice",
             ...choices.map((c) => c.voice_command),
             ...choices.map((c) => c.choice_number.toString()),
           ]}
@@ -779,6 +823,47 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
               console.log('[RPG] Book progress updated:', progress)
             }}
           />
+        )}
+
+        {/* Interactive Dice Panel */}
+        {showDice && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <InteractiveDice
+              onRollResult={(result, modifier) => {
+                setDiceResult(result)
+                console.log('[Dice] Rolled:', result, 'with modifier:', modifier)
+              }}
+              onChoiceInfluence={(choiceIndex, diceResult) => {
+                console.log('[Dice] Influencing choice:', choiceIndex, 'with result:', diceResult)
+                // Find the dice choice and determine outcome based on roll
+                const diceChoice = choices.find(c => c.choice_type === 'dice')
+                if (diceChoice?.dice_outcomes) {
+                  const outcome = diceChoice.dice_outcomes.find(outcome =>
+                    diceResult >= outcome.min_roll && diceResult <= outcome.max_roll
+                  )
+
+                  if (outcome) {
+                    console.log('[Dice] Selected outcome:', outcome.outcome_description)
+                    // Award experience for dice rolls
+                    if (selectedCharacterId) {
+                      supabase.rpc('add_character_experience', {
+                        character_id: selectedCharacterId,
+                        exp_amount: 25
+                      })
+                    }
+
+                    if (outcome.next_audiobook_id) {
+                      router.push(`/listen/${outcome.next_audiobook_id}`)
+                    } else {
+                      router.push(`/series/${audiobook?.series.id}`)
+                    }
+                  }
+                }
+              }}
+              availableChoices={choices}
+              onClose={() => setShowDice(false)}
+            />
+          </div>
         )}
 
         {audiobook.description && (

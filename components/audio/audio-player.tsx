@@ -337,6 +337,20 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
           character_id: selectedCharacterId,
           exp_amount: 15
         })
+
+        // Award bonus experience for item collection
+        const { data: inventoryCount } = await supabase
+          .from('character_inventory')
+          .select('id', { count: 'exact' })
+          .eq('character_sheet_id', selectedCharacterId)
+
+        if (inventoryCount && inventoryCount.length > 0) {
+          await supabase.rpc('add_character_experience', {
+            character_id: selectedCharacterId,
+            exp_amount: 5 // Bonus XP for having items
+          })
+          console.log('[RPG] Bonus XP awarded for item collection')
+        }
       } catch (error) {
         console.error('Error awarding choice experience:', error)
       }
@@ -400,14 +414,24 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
   const handleVoiceCommand = (command: string) => {
     const lowerCommand = command.toLowerCase().trim()
 
-    // Item acquisition commands
-    const itemCommand = voiceCommands.find(vc =>
-      lowerCommand.includes(vc.command_text.toLowerCase()) ||
-      vc.command_text.toLowerCase().includes(lowerCommand)
-    )
+    // Item acquisition commands - enhanced matching
+    const itemCommand = voiceCommands.find(vc => {
+      const commandText = vc.command_text.toLowerCase()
+      return (
+        lowerCommand === commandText ||
+        lowerCommand.includes(commandText) ||
+        commandText.includes(lowerCommand) ||
+        // Fuzzy matching for common variations
+        (commandText.includes('sword') && lowerCommand.includes('sword')) ||
+        (commandText.includes('potion') && lowerCommand.includes('potion')) ||
+        (commandText.includes('armor') && lowerCommand.includes('armor')) ||
+        (commandText.includes('ring') && lowerCommand.includes('ring')) ||
+        (commandText.includes('tome') && lowerCommand.includes('tome'))
+      )
+    })
 
     if (itemCommand && user && selectedCharacterId) {
-      console.log('[Items] Voice command triggered for item:', itemCommand.item?.name)
+      console.log('[Items] Voice command triggered for item:', itemCommand.item?.name, 'Command:', command)
 
       supabase.rpc('acquire_item', {
         p_character_id: selectedCharacterId,
@@ -549,6 +573,22 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
     "show 3d": "show 3d",
     "3d scene": "3d scene",
     "companion": "companion",
+    // Item acquisition commands
+    "add sword": "add sword",
+    "add health potion": "add health potion",
+    "add armor": "add armor",
+    "add magic ring": "add magic ring",
+    "add ancient tome": "add ancient tome",
+    "give me sword": "add sword",
+    "give me health potion": "add health potion",
+    "give me armor": "add armor",
+    "give me magic ring": "add magic ring",
+    "give me ancient tome": "add ancient tome",
+    "i want sword": "add sword",
+    "i want health potion": "add health potion",
+    "i want armor": "add armor",
+    "i want magic ring": "add magic ring",
+    "i want ancient tome": "add ancient tome",
   }
 
   const formatTime = (seconds: number) => {
@@ -961,7 +1001,7 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
                 setDiceResult(result)
                 console.log('[Dice] Rolled:', result, 'with modifier:', modifier)
               }}
-              onChoiceInfluence={(choiceIndex, diceResult) => {
+              onChoiceInfluence={async (choiceIndex, diceResult) => {
                 console.log('[Dice] Influencing choice:', choiceIndex, 'with result:', diceResult)
                 // Find the dice choice and determine outcome based on roll
                 const diceChoice = choices.find(c => c.choice_type === 'dice')
@@ -974,10 +1014,14 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
                     console.log('[Dice] Selected outcome:', outcome.outcome_description)
                     // Award experience for dice rolls
                     if (selectedCharacterId) {
-                      supabase.rpc('add_character_experience', {
-                        character_id: selectedCharacterId,
-                        exp_amount: 25
-                      })
+                      try {
+                        await supabase.rpc('add_character_experience', {
+                          character_id: selectedCharacterId,
+                          exp_amount: 25
+                        })
+                      } catch (error) {
+                        console.error('Error awarding dice XP:', error)
+                      }
                     }
 
                     if (outcome.next_audiobook_id) {

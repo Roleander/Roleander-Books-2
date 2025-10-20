@@ -58,6 +58,7 @@ interface Choice {
     id: string
     min_roll: number
     max_roll: number
+    dice_type: 'd4' | 'd6' | 'd8' | 'd10' | 'd12' | 'd20'
     next_audiobook_id: string | null
     outcome_description: string
   }>
@@ -862,6 +863,7 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
               }}
               availableChoices={choices}
               onClose={() => setShowDice(false)}
+              diceType={choices.find(c => c.choice_type === 'dice')?.dice_outcomes?.[0]?.dice_type || 'd20'}
             />
           </div>
         )}

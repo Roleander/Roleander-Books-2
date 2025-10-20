@@ -15,6 +15,7 @@ interface InteractiveDiceProps {
   availableChoices?: Array<{ id: string, choice_text: string }>
   isVisible?: boolean
   onClose?: () => void
+  diceType?: 'd4' | 'd6' | 'd8' | 'd10' | 'd12' | 'd20'
 }
 
 interface Dice3DProps {
@@ -135,7 +136,8 @@ export function InteractiveDice({
   onChoiceInfluence,
   availableChoices = [],
   isVisible = true,
-  onClose
+  onClose,
+  diceType = 'd20'
 }: InteractiveDiceProps) {
   const [currentResult, setCurrentResult] = useState<number>(1)
   const [isRolling, setIsRolling] = useState(false)
@@ -143,6 +145,18 @@ export function InteractiveDice({
   const [modifier, setModifier] = useState(0)
   const [showParticles, setShowParticles] = useState(false)
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null)
+
+  const getDiceSides = (type: string) => {
+    switch (type) {
+      case 'd4': return 4
+      case 'd6': return 6
+      case 'd8': return 8
+      case 'd10': return 10
+      case 'd12': return 12
+      case 'd20': return 20
+      default: return 20
+    }
+  }
 
   const rollDice = () => {
     if (isRolling) return
@@ -152,7 +166,8 @@ export function InteractiveDice({
 
     // Simulate rolling animation
     setTimeout(() => {
-      const result = Math.floor(Math.random() * 6) + 1
+      const sides = getDiceSides(diceType)
+      const result = Math.floor(Math.random() * sides) + 1
       setCurrentResult(result)
       setRollHistory(prev => [result, ...prev.slice(0, 4)]) // Keep last 5 rolls
       setIsRolling(false)
@@ -188,7 +203,7 @@ export function InteractiveDice({
       <CardHeader className="text-center">
         <div className="flex items-center justify-center gap-2 mb-2">
           <Sparkles className="h-6 w-6 text-primary" />
-          <CardTitle className="text-xl">🎲 Interactive Dice</CardTitle>
+          <CardTitle className="text-xl">🎲 Interactive {diceType.toUpperCase()}</CardTitle>
           <Sparkles className="h-6 w-6 text-primary" />
         </div>
         <CardDescription>
@@ -270,7 +285,7 @@ export function InteractiveDice({
               </>
             ) : (
               <>
-                🎲 Roll D20
+                🎲 Roll {diceType.toUpperCase()}
               </>
             )}
           </Button>

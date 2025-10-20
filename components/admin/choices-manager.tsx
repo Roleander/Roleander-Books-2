@@ -36,6 +36,7 @@ interface DiceOutcome {
   id: string
   min_roll: number
   max_roll: number
+  dice_type: 'd4' | 'd6' | 'd8' | 'd10' | 'd12' | 'd20'
   next_audiobook_id: string
   outcome_description: string
 }
@@ -53,6 +54,7 @@ export function ChoicesManager() {
     voice_command: "",
     next_audiobook_id: "",
     choice_type: 'standard' as 'standard' | 'dice',
+    dice_type: 'd20' as 'd4' | 'd6' | 'd8' | 'd10' | 'd12' | 'd20',
     dice_outcomes: [] as DiceOutcome[],
   })
 
@@ -165,6 +167,7 @@ export function ChoicesManager() {
               choice_id: editingChoice.id,
               min_roll: outcome.min_roll,
               max_roll: outcome.max_roll,
+              dice_type: outcome.dice_type,
               next_audiobook_id: outcome.next_audiobook_id || null,
               outcome_description: outcome.outcome_description,
             }))
@@ -209,6 +212,7 @@ export function ChoicesManager() {
             choice_id: newChoice.id,
             min_roll: outcome.min_roll,
             max_roll: outcome.max_roll,
+            dice_type: outcome.dice_type,
             next_audiobook_id: outcome.next_audiobook_id || null,
             outcome_description: outcome.outcome_description,
           }))
@@ -237,6 +241,9 @@ export function ChoicesManager() {
       voice_command: choice.voice_command,
       next_audiobook_id: choice.next_audiobook_id || "",
       choice_type: choice.choice_type || 'standard',
+      dice_type: (choice.dice_outcomes && choice.dice_outcomes.length > 0)
+        ? choice.dice_outcomes[0].dice_type || 'd20'
+        : 'd20',
       dice_outcomes: choice.dice_outcomes || [],
     })
     setShowForm(true)
@@ -262,6 +269,7 @@ export function ChoicesManager() {
       voice_command: "",
       next_audiobook_id: "",
       choice_type: 'standard',
+      dice_type: 'd20',
       dice_outcomes: [],
     })
     setShowForm(false)
@@ -554,14 +562,38 @@ export function ChoicesManager() {
                     </div>
                   ))}
 
+                  <div className="space-y-2">
+                    <Label>Dice Type</Label>
+                    <Select
+                      value={formData.dice_type}
+                      onValueChange={(value: 'd4' | 'd6' | 'd8' | 'd10' | 'd12' | 'd20') =>
+                        setFormData({ ...formData, dice_type: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select dice type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="d4">d4 (4-sided)</SelectItem>
+                        <SelectItem value="d6">d6 (6-sided)</SelectItem>
+                        <SelectItem value="d8">d8 (8-sided)</SelectItem>
+                        <SelectItem value="d10">d10 (10-sided)</SelectItem>
+                        <SelectItem value="d12">d12 (12-sided)</SelectItem>
+                        <SelectItem value="d20">d20 (20-sided)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => {
+                      const maxValue = parseInt(formData.dice_type.substring(1))
                       const newOutcome: DiceOutcome = {
                         id: `outcome-${Date.now()}`,
                         min_roll: 1,
-                        max_roll: 20,
+                        max_roll: maxValue,
+                        dice_type: formData.dice_type,
                         next_audiobook_id: "",
                         outcome_description: "",
                       }
@@ -573,7 +605,7 @@ export function ChoicesManager() {
                     className="w-full"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Dice Outcome
+                    Add {formData.dice_type.toUpperCase()} Outcome
                   </Button>
                 </div>
               )}
@@ -604,17 +636,21 @@ export function ChoicesManager() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    {choice.choice_type === 'dice' ? (
-                      <Dice6 className="h-4 w-4 text-primary" />
-                    ) : (
-                      <GitBranch className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <h4 className="font-medium">{choice.choice_text}</h4>
-                    <Badge variant="outline">#{choice.choice_number}</Badge>
-                    {choice.choice_type === 'dice' && (
-                      <Badge className="bg-primary/10 text-primary">🎲 Dice</Badge>
-                    )}
-                  </div>
+                  {choice.choice_type === 'dice' ? (
+                    <Dice6 className="h-4 w-4 text-primary" />
+                  ) : (
+                    <GitBranch className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <h4 className="font-medium">{choice.choice_text}</h4>
+                  <Badge variant="outline">#{choice.choice_number}</Badge>
+                  {choice.choice_type === 'dice' && (
+                    <Badge className="bg-primary/10 text-primary">
+                      🎲 {choice.dice_outcomes && choice.dice_outcomes.length > 0
+                        ? choice.dice_outcomes[0].dice_type.toUpperCase()
+                        : 'Dice'}
+                    </Badge>
+                  )}
+                </div>
                   <div className="space-y-1 text-sm text-muted-foreground">
                     <div>
                       <strong>From:</strong>

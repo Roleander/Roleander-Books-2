@@ -380,12 +380,15 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
           // Mark as processed
           setProcessedCues(prev => new Set([...prev, cue.id]))
 
-          // Show notification
-          const notificationText = cue.cue_text || `✨ ${cue.item?.name} acquired!`
-          console.log('[Items] Item acquired via audio cue:', notificationText)
+          // Emit event for notification system
+          window.dispatchEvent(new CustomEvent('itemAcquired', {
+            detail: {
+              item: cue.item,
+              acquisitionMethod: 'audio_cue'
+            }
+          }))
 
-          // You could add a toast notification here
-          alert(notificationText)
+          console.log('[Items] Item acquired via audio cue:', cue.item?.name)
 
         } catch (error) {
           console.error('[Items] Error acquiring item from audio cue:', error)
@@ -412,9 +415,14 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
         p_quantity: 1,
         p_acquired_method: 'voice_command'
       }).then(() => {
-        const notificationText = `🎤 ${itemCommand.item?.name} acquired via voice command!`
-        console.log('[Items] Item acquired via voice:', notificationText)
-        alert(notificationText)
+        // Emit event for notification system
+        window.dispatchEvent(new CustomEvent('itemAcquired', {
+          detail: {
+            item: itemCommand.item,
+            acquisitionMethod: 'voice_command'
+          }
+        }))
+        console.log('[Items] Item acquired via voice:', itemCommand.item?.name)
       }).catch((error: any) => {
         console.error('[Items] Error acquiring item via voice:', error)
       })

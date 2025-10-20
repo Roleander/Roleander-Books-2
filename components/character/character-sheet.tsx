@@ -26,8 +26,10 @@ import {
   BookOpen,
   Target,
   Users,
-  Wand2
+  Wand2,
+  Package
 } from "lucide-react"
+import { InventoryManager } from "./inventory-manager"
 
 interface CharacterSheet {
   id: string
@@ -75,8 +77,21 @@ export function CharacterSheet({ userId, onCharacterSelect }: CharacterSheetProp
   useEffect(() => {
     if (selectedCharacter) {
       fetchCharacterStats(selectedCharacter.id)
+      applyItemEffects(selectedCharacter.id)
       onCharacterSelect?.(selectedCharacter)
     }
+  }, [selectedCharacter])
+
+  // Listen for inventory changes to update stats
+  useEffect(() => {
+    const handleInventoryChange = () => {
+      if (selectedCharacter) {
+        applyItemEffects(selectedCharacter.id)
+      }
+    }
+
+    window.addEventListener('characterStatsUpdated', handleInventoryChange)
+    return () => window.removeEventListener('characterStatsUpdated', handleInventoryChange)
   }, [selectedCharacter])
 
   const fetchCharacters = async () => {
@@ -161,8 +176,64 @@ export function CharacterSheet({ userId, onCharacterSelect }: CharacterSheetProp
       if (error) throw error
 
       await fetchCharacterStats(selectedCharacter!.id)
+      // Emit event to refresh inventory effects
+      window.dispatchEvent(new CustomEvent('characterStatsUpdated'))
     } catch (error) {
       console.error('Error updating stat:', error)
+    }
+  }
+
+  // Apply item effects to character stats
+  const applyItemEffects = async (characterId: string) => {
+    try {
+      // Get all equipped items for this character
+      const { data: equippedItems, error: inventoryError } = await supabase
+        .from('character_inventory')
+        .select(`
+          item:items(
+            item_effects(*)
+          )
+        `)
+        .eq('character_sheet_id', characterId)
+        .eq('is_equipped', true)
+
+      if (inventoryError) throw inventoryError
+
+      // Calculate total effects from equipped items
+      const effectTotals: { [key: string]: number } = {}
+
+      equippedItems?.forEach((inventoryItem: any) => {
+        inventoryItem.item?.item_effects?.forEach((effect: any) => {
+          if (effect.effect_type === 'permanent') {
+            effectTotals[effect.stat_name] = (effectTotals[effect.stat_name] || 0) + effect.effect_value
+          }
+        })
+      })
+
+      // Update character stats with item bonuses
+      const { data: characterStats, error: statsError } = await supabase
+        .from('character_stats')
+        .select('*')
+        .eq('character_sheet_id', characterId)
+
+      if (statsError) throw statsError
+
+      // Apply effects to each stat
+      for (const stat of characterStats || []) {
+        const baseValue = stat.stat_value - (effectTotals[stat.stat_name] || 0)
+        const newValue = baseValue + (effectTotals[stat.stat_name] || 0)
+
+        if (newValue !== stat.stat_value) {
+          await supabase
+            .from('character_stats')
+            .update({ stat_value: newValue })
+            .eq('id', stat.id)
+        }
+      }
+
+      await fetchCharacterStats(characterId)
+    } catch (error) {
+      console.error('Error applying item effects:', error)
     }
   }
 
@@ -531,19 +602,7 @@ export function CharacterSheet({ userId, onCharacterSelect }: CharacterSheetProp
               </TabsContent>
 
               <TabsContent value="inventory" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Character Inventory</CardTitle>
-                    <CardDescription>Items collected during your audiobook adventures</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-8 text-muted-foreground">
-                      <BookOpen className="h-12 w-12 mx-auto mb-4" />
-                      <p>Inventory system coming soon!</p>
-                      <p className="text-sm">Items will be collected as you make choices in audiobooks.</p>
-                    </div>
-                  </CardContent>
-                </Card>
+                <InventoryManager userId={userId} selectedCharacter={selectedCharacter} />
               </TabsContent>
 
               <TabsContent value="achievements" className="space-y-4">

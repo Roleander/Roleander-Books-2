@@ -291,6 +291,222 @@ export default function ProfilePage() {
                       <Badge variant="secondary">Free Member</Badge>
                     )}
                   </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <Calendar className="h-4 w-4" />
+                    <span>Joined {formatDate(profile.created_at)}</span>
+                  </div>
+
+                  {profile.subscription_tier === "premium" && profile.subscription_expires_at && (
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <CreditCard className="h-4 w-4" />
+                      <span>Premium until {formatDate(profile.subscription_expires_at)}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Profile Settings */}
+            <div className="md:col-span-1 lg:col-span-2 space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Profile Information
+                  </CardTitle>
+                  <CardDescription>Update your personal information and preferences</CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input id="email" type="email" value={profile.email} disabled className="bg-muted" />
+                    <p className="text-xs text-muted-foreground">Email cannot be changed. Contact support if needed.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input
+                      id="fullName"
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Enter your full name"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="subscriptionTier">Subscription Tier</Label>
+                    <Select value={subscriptionTier} onValueChange={handleSubscriptionChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select subscription tier" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="free">Free</SelectItem>
+                        <SelectItem value="premium">Premium</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button
+                    onClick={handleSaveProfile}
+                    disabled={saving || (fullName === profile.full_name && subscriptionTier === profile.subscription_tier)}
+                    className="w-full sm:w-auto"
+                  >
+                    {saving ? "Saving..." : "Save Changes"}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Preferences Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Palette className="h-5 w-5" />
+                    Preferences
+                  </CardTitle>
+                  <CardDescription>Customize your experience</CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="theme">Theme</Label>
+                    <Select value={theme} onValueChange={setTheme}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select theme" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="light">Light</SelectItem>
+                        <SelectItem value="dark">Dark</SelectItem>
+                        <SelectItem value="system">System</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="notifications">Email Notifications</Label>
+                      <p className="text-sm text-muted-foreground">Receive updates about new content</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setNotifications(!notifications)}
+                    >
+                      {notifications ? "Enabled" : "Disabled"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Settings Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Account Settings
+                  </CardTitle>
+                  <CardDescription>Manage your account and security</CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start">
+                        <Key className="mr-2 h-4 w-4" />
+                        Security Options
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56">
+                      <DropdownMenuLabel>Account Security</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={() => alert("Password change coming soon!")}>
+                        <Key className="mr-2 h-4 w-4" />
+                        Change Password
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => alert("Two-factor auth coming soon!")}>
+                        <Shield className="mr-2 h-4 w-4" />
+                        Two-Factor Authentication
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Sign Out
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {profile.role === "admin" && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start">
+                          <Crown className="mr-2 h-4 w-4" />
+                          Admin Panel
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-56">
+                        <DropdownMenuLabel>Administration</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => router.push("/admin")}>
+                          <Shield className="mr-2 h-4 w-4" />
+                          Admin Dashboard
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => alert("User management coming soon!")}>
+                          <User className="mr-2 h-4 w-4" />
+                          Manage Users
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-8">
+          <Button variant="ghost" size="sm" onClick={() => router.push("/library")} className="flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Library
+          </Button>
+        </div>
+
+        <div className="grid gap-6">
+          {/* Character Sheet Section */}
+          <div className="w-full">
+            <CharacterSheet userId={user.id} />
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {/* Profile Overview */}
+            <div className="md:col-span-1">
+              <Card>
+                <CardHeader className="text-center">
+                  <div className="flex justify-center mb-4">
+                    <Avatar className="h-20 w-20">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xl">
+                        {getInitials(profile.full_name || "User")}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                  <CardTitle className="text-xl">{profile.full_name || "User"}</CardTitle>
+                  <CardDescription>{profile.email}</CardDescription>
+                  <div className="flex justify-center mt-4">
+                    {profile.subscription_tier === "premium" ? (
+                      <Badge className="bg-accent text-accent-foreground">
+                        <Crown className="h-3 w-3 mr-1" />
+                        Premium Member
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">Free Member</Badge>
+                    )}
+                  </div>
               </CardHeader>
 
               <CardContent className="space-y-4">

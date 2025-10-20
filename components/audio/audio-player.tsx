@@ -25,6 +25,7 @@ import {
 import { VoiceRecognition } from "./voice-recognition"
 import { InteractiveChoices } from "./interactive-choices"
 import { BookCharacterProgression } from "../character/book-character-progression"
+import { ThreeScene, ThreeScenePresets } from "../ui/three-scene"
 
 interface AudioPlayerProps {
   audiobookId: string
@@ -297,6 +298,13 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
   const handleVoiceCommand = (command: string) => {
     const lowerCommand = command.toLowerCase().trim()
 
+    // 3D Scene commands
+    if (lowerCommand.includes("show 3d") || lowerCommand.includes("3d scene") || lowerCommand.includes("companion")) {
+      // The 3D scene is always visible, but we could add more interactive features
+      console.log("[3D] Voice command received for 3D scene")
+      return
+    }
+
     // RPG character commands
     if (lowerCommand.includes("check stats") || lowerCommand.includes("show character") || lowerCommand.includes("character sheet")) {
       setShowCharacterProgress(!showCharacterProgress)
@@ -395,6 +403,9 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
     "character sheet": "character sheet",
     "level up": "level up",
     "gain experience": "gain experience",
+    "show 3d": "show 3d",
+    "3d scene": "3d scene",
+    "companion": "companion",
   }
 
   const formatTime = (seconds: number) => {
@@ -578,8 +589,19 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
         <Card className="border-border/50 shadow-xl">
           <CardContent className="p-8">
             <div className="flex flex-col lg:flex-row gap-8">
-              <div className="w-full lg:w-80 flex-shrink-0">
-                <div className="aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-accent/20 to-primary/20 shadow-lg">
+              <div className="w-full lg:w-80 flex-shrink-0 space-y-4">
+                {/* 3D Animated Scene */}
+                <div className="aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-accent/20 to-primary/20 shadow-lg relative">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <ThreeScene {...ThreeScenePresets.interactive} />
+                  </div>
+                  <div className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm rounded-lg px-2 py-1">
+                    <span className="text-xs text-white font-medium">🎮 3D Companion</span>
+                  </div>
+                </div>
+
+                {/* Book Cover (smaller) */}
+                <div className="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-accent/20 to-primary/20 shadow-lg">
                   {audiobook.series.cover_image_url ? (
                     <img
                       src={audiobook.series.cover_image_url || "/placeholder.svg"}
@@ -588,7 +610,7 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <BookOpen className="h-24 w-24 text-muted-foreground/50" />
+                      <BookOpen className="h-12 w-12 text-muted-foreground/50" />
                     </div>
                   )}
                 </div>
@@ -734,6 +756,9 @@ export function AudioPlayer({ audiobookId, user }: AudioPlayerProps) {
             "character sheet",
             "level up",
             "gain experience",
+            "show 3d",
+            "3d scene",
+            "companion",
             ...choices.map((c) => c.voice_command),
             ...choices.map((c) => c.choice_number.toString()),
           ]}

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { MultiplayerLobby } from '@/components/ui/multiplayer-lobby'
 import { VotingInterface } from '@/components/ui/voting-interface'
 import { SessionManager } from '@/components/ui/session-manager'
+import { VoiceChatControls } from '@/components/ui/voice-chat-controls'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -72,6 +73,7 @@ export default function MultiplayerPage() {
   const [userVote, setUserVote] = useState<string | undefined>(undefined)
   const [showResults, setShowResults] = useState(false)
   const [winnerChoiceId, setWinnerChoiceId] = useState<string | undefined>(undefined)
+  const [voiceChatActive, setVoiceChatActive] = useState(false)
   const [audiobooks, setAudiobooks] = useState<Array<{ id: string, title: string }>>([])
 
   const router = useRouter()
@@ -426,8 +428,9 @@ export default function MultiplayerPage() {
           />
         ) : (
           <Tabs defaultValue="voting" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="voting">Democratic Voting</TabsTrigger>
+              <TabsTrigger value="voice">Voice Chat</TabsTrigger>
               <TabsTrigger value="session">Session Management</TabsTrigger>
               <TabsTrigger value="story">Story Progress</TabsTrigger>
             </TabsList>
@@ -458,6 +461,25 @@ export default function MultiplayerPage() {
                   </CardContent>
                 </Card>
               )}
+            </TabsContent>
+
+            <TabsContent value="voice" className="space-y-6">
+              <VoiceChatControls
+                sessionId={currentSession!.id}
+                participantId={participantId!}
+                isHost={isHost}
+                participants={participants.map(p => ({
+                  participant_id: p.participant_id,
+                  user_id: p.user_id,
+                  character_name: p.character_name,
+                  is_muted: false, // TODO: Implement mute status
+                  is_speaking: false, // TODO: Implement speaking detection
+                  volume_level: 0.5, // TODO: Implement volume levels
+                  connection_quality: p.connection_quality as any
+                }))}
+                isVotingActive={votingChoices.length > 0 && timeRemaining > 0}
+                onVoiceChatToggle={setVoiceChatActive}
+              />
             </TabsContent>
 
             <TabsContent value="session" className="space-y-6">

@@ -32,6 +32,9 @@ import {
 } from "lucide-react"
 import { InventoryManager } from "./inventory-manager"
 import { CharacterTemplateSelector } from "@/components/ui/character-template-selector"
+import { CharacterRoster } from "@/components/ui/character-roster"
+import { PartyBuilder } from "@/components/ui/party-builder"
+import { CharacterAssignment } from "@/components/ui/character-assignment"
 
 interface CharacterSheet {
   id: string
@@ -71,6 +74,11 @@ export function CharacterSheet({ userId, audiobookId, onCharacterSelect }: Chara
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState<Partial<CharacterSheet>>({})
   const [showTemplateSelector, setShowTemplateSelector] = useState(false)
+  const [showCharacterRoster, setShowCharacterRoster] = useState(false)
+  const [showPartyBuilder, setShowPartyBuilder] = useState(false)
+  const [selectedParty, setSelectedParty] = useState<any>(null)
+  const [showCharacterAssignment, setShowCharacterAssignment] = useState(false)
+  const [assignmentAudiobookId, setAssignmentAudiobookId] = useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -320,10 +328,16 @@ export function CharacterSheet({ userId, audiobookId, onCharacterSelect }: Chara
               </CardTitle>
               <CardDescription>Manage your RPG characters for audiobook adventures</CardDescription>
             </div>
-            <Button onClick={createNewCharacter} size="sm">
-              <Sparkles className="h-4 w-4 mr-2" />
-              {audiobookId ? 'Choose Character' : 'New Character'}
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={createNewCharacter} size="sm">
+                <Sparkles className="h-4 w-4 mr-2" />
+                {audiobookId ? 'Choose Character' : 'New Character'}
+              </Button>
+              <Button onClick={() => setShowCharacterRoster(true)} size="sm" variant="outline">
+                <Users className="h-4 w-4 mr-2" />
+                Character Roster
+              </Button>
+            </div>
           </div>
         </CardHeader>
 
@@ -405,6 +419,51 @@ export function CharacterSheet({ userId, audiobookId, onCharacterSelect }: Chara
           onCustomCharacter={handleCustomCharacter}
           isOpen={showTemplateSelector}
           onClose={() => setShowTemplateSelector(false)}
+        />
+      )}
+
+      {/* Character Roster */}
+      <CharacterRoster
+        userId={userId}
+        onCharacterSelect={(character) => {
+          setSelectedCharacter(character)
+          setShowCharacterRoster(false)
+        }}
+        showAudiobookFilter={!!audiobookId}
+        audiobookId={audiobookId || undefined}
+      />
+
+      {/* Party Builder */}
+      {selectedParty && (
+        <PartyBuilder
+          party={selectedParty}
+          availableCharacters={characters}
+          onCharacterAdd={async (characterId, role) => {
+            // Implementation for adding character to party
+            console.log('Adding character to party:', characterId, role)
+          }}
+          onCharacterRemove={async (characterId) => {
+            // Implementation for removing character from party
+            console.log('Removing character from party:', characterId)
+          }}
+        />
+      )}
+
+      {/* Character Assignment */}
+      {assignmentAudiobookId && (
+        <CharacterAssignment
+          audiobookId={assignmentAudiobookId}
+          userId={userId}
+          onAssignmentComplete={(assignments) => {
+            console.log('Character assignments completed:', assignments)
+            setShowCharacterAssignment(false)
+            setAssignmentAudiobookId(null)
+          }}
+          isOpen={showCharacterAssignment}
+          onClose={() => {
+            setShowCharacterAssignment(false)
+            setAssignmentAudiobookId(null)
+          }}
         />
       )}
 

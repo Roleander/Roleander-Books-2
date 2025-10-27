@@ -27,9 +27,11 @@ import {
   Target,
   Users,
   Wand2,
-  Package
+  Package,
+  Sparkles
 } from "lucide-react"
 import { InventoryManager } from "./inventory-manager"
+import { CharacterTemplateSelector } from "@/components/ui/character-template-selector"
 
 interface CharacterSheet {
   id: string
@@ -57,16 +59,18 @@ interface CharacterStat {
 
 interface CharacterSheetProps {
   userId: string
+  audiobookId?: string // Optional - for template selection
   onCharacterSelect?: (character: CharacterSheet) => void
 }
 
-export function CharacterSheet({ userId, onCharacterSelect }: CharacterSheetProps) {
+export function CharacterSheet({ userId, audiobookId, onCharacterSelect }: CharacterSheetProps) {
   const [characters, setCharacters] = useState<CharacterSheet[]>([])
   const [selectedCharacter, setSelectedCharacter] = useState<CharacterSheet | null>(null)
   const [characterStats, setCharacterStats] = useState<CharacterStat[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState<Partial<CharacterSheet>>({})
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false)
 
   const supabase = createClient()
 
@@ -133,19 +137,52 @@ export function CharacterSheet({ userId, onCharacterSelect }: CharacterSheetProp
   }
 
   const createNewCharacter = async () => {
+    // If we have an audiobookId, show template selector instead
+    if (audiobookId) {
+      setShowTemplateSelector(true)
+    } else {
+      // Fallback to default character creation
+      try {
+        const { data, error } = await supabase
+          .rpc('create_default_character', {
+            user_id: userId,
+            character_name: 'New Adventurer'
+          })
+
+        if (error) throw error
+
+        await fetchCharacters()
+      } catch (error) {
+        console.error('Error creating character:', error)
+      }
+    }
+  }
+
+  const handleTemplateSelected = async (template: any) => {
     try {
+      if (!audiobookId) return
+
       const { data, error } = await supabase
-        .rpc('create_default_character', {
-          user_id: userId,
-          character_name: 'New Adventurer'
+        .rpc('create_character_from_template', {
+          p_user_id: userId,
+          p_audiobook_id: audiobookId,
+          p_template_id: template.template_id,
+          p_character_name: template.template_name
         })
 
       if (error) throw error
 
       await fetchCharacters()
+      setShowTemplateSelector(false)
     } catch (error) {
-      console.error('Error creating character:', error)
+      console.error('Error creating character from template:', error)
     }
+  }
+
+  const handleCustomCharacter = () => {
+    // Fallback to default character creation
+    setShowTemplateSelector(false)
+    createNewCharacter()
   }
 
   const updateCharacter = async () => {
@@ -284,8 +321,8 @@ export function CharacterSheet({ userId, onCharacterSelect }: CharacterSheetProp
               <CardDescription>Manage your RPG characters for audiobook adventures</CardDescription>
             </div>
             <Button onClick={createNewCharacter} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              New Character
+              <Sparkles className="h-4 w-4 mr-2" />
+              {audiobookId ? 'Choose Character' : 'New Character'}
             </Button>
           </div>
         </CardHeader>
@@ -358,6 +395,18 @@ export function CharacterSheet({ userId, onCharacterSelect }: CharacterSheetProp
           )}
         </CardContent>
       </Card>
+
+      {/* Character Template Selector */}
+      {audiobookId && (
+        <CharacterTemplateSelector
+          audiobookId={audiobookId}
+          userId={userId}
+          onTemplateSelected={handleTemplateSelected}
+          onCustomCharacter={handleCustomCharacter}
+          isOpen={showTemplateSelector}
+          onClose={() => setShowTemplateSelector(false)}
+        />
+      )}
 
       {/* Character Details */}
       {selectedCharacter && (

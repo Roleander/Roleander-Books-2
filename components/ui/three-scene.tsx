@@ -2,7 +2,7 @@
 
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Text, Float, Sphere, Box, Torus } from '@react-three/drei'
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect, Suspense } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
@@ -107,6 +107,38 @@ export function ThreeScene({
   showControls = false
 }: ThreeSceneProps) {
   const [isHovered, setIsHovered] = useState(false)
+  const [hasError, setHasError] = useState(false)
+  const [webglSupported, setWebglSupported] = useState(true)
+
+  // Check WebGL support on mount
+  useEffect(() => {
+    const checkWebGL = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
+        setWebglSupported(!!gl)
+      } catch (e) {
+        setWebglSupported(false)
+      }
+    }
+    checkWebGL()
+  }, [])
+
+  // Fallback UI for when 3D fails or WebGL not supported
+  if (hasError || !webglSupported) {
+    return (
+      <div
+        className="rounded-lg overflow-hidden border border-border bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center"
+        style={{ width, height }}
+      >
+        <div className="text-center text-white/70 p-4">
+          <div className="text-2xl mb-2">🎮</div>
+          <div className="text-sm">3D Scene Unavailable</div>
+          {!webglSupported && <div className="text-xs mt-1">WebGL not supported</div>}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -115,13 +147,49 @@ export function ThreeScene({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Canvas
-        camera={{ position: [0, 0, 5], fov: 50 }}
-        style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}
+      <Suspense
+        fallback={
+          <div className="w-full h-full bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
+            <div className="text-white/70 text-sm">Loading 3D...</div>
+          </div>
+        }
       >
-        <SceneContent interactive={interactive} />
-        {showControls && <OrbitControls enableZoom={true} enablePan={false} />}
-      </Canvas>
+        <Canvas
+          camera={{ position: [0, 0, 5], fov: 50 }}
+          style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}
+          onError={(error) => {
+            console.error('ThreeScene Canvas error:', error)
+            setHasError(true)
+          }}
+          onCreated={({ gl }) => {
+            try {
+              gl.setClearColor('#0f172a')
+              gl.shadowMap.enabled = false
+              // Additional error handling for WebGL context
+              const context = gl.getContext()
+              if (context) {
+                context.getExtension('WEBGL_lose_context')
+              }
+            } catch (e) {
+              console.warn('WebGL context setup failed:', e)
+              setHasError(true)
+            }
+          }}
+          gl={{
+            antialias: false,
+            alpha: false,
+            powerPreference: "default",
+            failIfMajorPerformanceCaveat: false,
+            stencil: false,
+            depth: true
+          }}
+          dpr={[1, 2]}
+          frameloop="always"
+        >
+          <SceneContent interactive={interactive} />
+          {showControls && <OrbitControls enableZoom={true} enablePan={false} />}
+        </Canvas>
+      </Suspense>
 
       {interactive && (
         <div className="absolute bottom-2 left-2 right-2">

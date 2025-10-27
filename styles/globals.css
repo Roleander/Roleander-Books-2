@@ -123,3 +123,13 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Canvas stability improvements for 3D components */
+canvas {
+  display: block;
+  outline: none;
+}
+
+.react-three-fiber canvas {
+  touch-action: none;
+}

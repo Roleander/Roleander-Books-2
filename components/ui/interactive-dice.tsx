@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Text, Float, Box, Sphere } from '@react-three/drei'
 import { Button } from '@/components/ui/button'
@@ -145,6 +145,22 @@ export function InteractiveDice({
   const [modifier, setModifier] = useState(0)
   const [showParticles, setShowParticles] = useState(false)
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null)
+  const [hasError, setHasError] = useState(false)
+  const [webglSupported, setWebglSupported] = useState(true)
+
+  // Check WebGL support on mount
+  useEffect(() => {
+    const checkWebGL = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
+        setWebglSupported(!!gl)
+      } catch (e) {
+        setWebglSupported(false)
+      }
+    }
+    checkWebGL()
+  }, [])
 
   const getDiceSides = (type: string) => {
     switch (type) {
@@ -198,52 +214,32 @@ export function InteractiveDice({
 
   if (!isVisible) return null
 
-  return (
-    <Card className="w-full max-w-md mx-auto border-2 border-primary/20 shadow-xl">
-      <CardHeader className="text-center">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <Sparkles className="h-6 w-6 text-primary" />
-          <CardTitle className="text-xl">🎲 Interactive {diceType.toUpperCase()}</CardTitle>
-          <Sparkles className="h-6 w-6 text-primary" />
-        </div>
-        <CardDescription>
-          Roll the dice to influence your story choices and character progression
-        </CardDescription>
-      </CardHeader>
+  // Fallback UI for when 3D fails or WebGL not supported
+  if (hasError || !webglSupported) {
+    return (
+      <Card className="w-full max-w-md mx-auto border-2 border-primary/20 shadow-xl">
+        <CardHeader className="text-center">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Sparkles className="h-6 w-6 text-primary" />
+            <CardTitle className="text-xl">🎲 Interactive {diceType.toUpperCase()}</CardTitle>
+            <Sparkles className="h-6 w-6 text-primary" />
+          </div>
+          <CardDescription>
+            Roll the dice to influence your story choices and character progression
+          </CardDescription>
+        </CardHeader>
 
-      <CardContent className="space-y-6">
-        {/* 3D Dice Display */}
-        <div className="h-48 bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg overflow-hidden relative">
-          <Canvas camera={{ position: [0, 0, 3], fov: 50 }}>
-            <ambientLight intensity={0.6} />
-            <directionalLight position={[10, 10, 5]} intensity={1} />
-            <pointLight position={[-10, -10, -5]} intensity={0.5} color="#fbbf24" />
-
-            <Dice3D
-              result={currentResult}
-              isRolling={isRolling}
-              onRollComplete={(result) => {
-                console.log('Dice roll completed:', result)
-              }}
-            />
-
-            <ParticleEffect isActive={showParticles} />
-          </Canvas>
-
-          {/* Result Overlay */}
-          <div className="absolute bottom-2 left-2 right-2">
-            <div className="bg-black/70 backdrop-blur-sm rounded-lg p-2 text-center">
-              <div className="text-white font-bold text-lg">
-                {isRolling ? 'Rolling...' : `Result: ${currentResult + modifier}`}
+        <CardContent className="space-y-6">
+          {/* Fallback Dice Display */}
+          <div className="h-48 bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg overflow-hidden relative flex items-center justify-center">
+            <div className="text-center text-white/70">
+              <div className="text-6xl mb-4">🎲</div>
+              <div className="text-lg font-bold">{currentResult}</div>
+              <div className="text-sm">
+                {!webglSupported ? 'WebGL not supported' : '3D Unavailable'}
               </div>
-              {modifier !== 0 && (
-                <div className="text-yellow-300 text-sm">
-                  {modifier > 0 ? '+' : ''}{modifier} modifier
-                </div>
-              )}
             </div>
           </div>
-        </div>
 
         {/* Controls */}
         <div className="space-y-4">

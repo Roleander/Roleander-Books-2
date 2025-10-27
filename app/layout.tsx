@@ -2,6 +2,8 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Crimson_Text, Inter } from "next/font/google"
 import "./globals.css"
+import { SplashScreenProvider } from "@/components/ui/splash-screen"
+import { ThemeProvider } from "@/components/theme-provider"
 
 const crimsonText = Crimson_Text({
   subsets: ["latin"],
@@ -29,7 +31,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${crimsonText.variable} ${inter.variable}`}>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SplashScreenProvider>
+            {children}
+          </SplashScreenProvider>
+        </ThemeProvider>
+      </body>
     </html>
   )
 }

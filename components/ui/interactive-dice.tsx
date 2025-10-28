@@ -24,10 +24,25 @@ interface Dice3DProps {
   onRollComplete?: (result: number) => void
 }
 
-function Dice3D({ result, isRolling, onRollComplete }: Dice3DProps) {
+function Dice3D({ result, isRolling, onRollComplete, diceType = 'd6' }: Dice3DProps & { diceType?: string }) {
   const meshRef = useRef<THREE.Mesh>(null)
   const [rotation, setRotation] = useState([0, 0, 0])
   const [position, setPosition] = useState([0, 0, 0])
+
+  // Different dice geometries and face mappings
+  const getDiceGeometry = (type: string) => {
+    switch (type) {
+      case 'd4': return { geometry: 'tetrahedron', faces: 4 }
+      case 'd6': return { geometry: 'cube', faces: 6 }
+      case 'd8': return { geometry: 'octahedron', faces: 8 }
+      case 'd10': return { geometry: 'pentagonal trapezohedron', faces: 10 }
+      case 'd12': return { geometry: 'dodecahedron', faces: 12 }
+      case 'd20': return { geometry: 'icosahedron', faces: 20 }
+      default: return { geometry: 'cube', faces: 6 }
+    }
+  }
+
+  const diceInfo = getDiceGeometry(diceType)
 
   useFrame((state) => {
     if (meshRef.current) {
@@ -41,17 +56,39 @@ function Dice3D({ result, isRolling, onRollComplete }: Dice3DProps) {
         const time = state.clock.elapsedTime
         meshRef.current.position.y = Math.sin(time * 8) * 0.2
       } else {
-        // Settle to final result
-        const targetRotations = {
-          1: [0, 0, 0],
-          2: [0, Math.PI / 2, 0],
-          3: [Math.PI / 2, 0, 0],
-          4: [-Math.PI / 2, 0, 0],
-          5: [0, -Math.PI / 2, 0],
-          6: [Math.PI, 0, 0]
+        // Settle to final result - different orientations for different dice
+        const targetRotations: { [key: number]: [number, number, number] } = {}
+
+        if (diceType === 'd10') {
+          // D10 has numbers 0-9, but we show 1-10
+          const d10Result = result === 10 ? 0 : result
+          targetRotations[d10Result] = [
+            Math.PI * (d10Result / 10),
+            Math.PI * (d10Result / 5),
+            Math.PI * (d10Result / 8)
+          ]
+        } else {
+          // Standard dice rotations
+          targetRotations[1] = [0, 0, 0]
+          targetRotations[2] = [0, Math.PI / 2, 0]
+          targetRotations[3] = [Math.PI / 2, 0, 0]
+          targetRotations[4] = [-Math.PI / 2, 0, 0]
+          targetRotations[5] = [0, -Math.PI / 2, 0]
+          targetRotations[6] = [Math.PI, 0, 0]
+
+          // Add rotations for higher dice
+          if (diceInfo.faces > 6) {
+            for (let i = 7; i <= diceInfo.faces; i++) {
+              targetRotations[i] = [
+                Math.PI * (i / diceInfo.faces),
+                Math.PI * (i / (diceInfo.faces / 2)),
+                Math.PI * (i / (diceInfo.faces / 3))
+              ]
+            }
+          }
         }
 
-        const targetRotation = targetRotations[result as keyof typeof targetRotations] || [0, 0, 0]
+        const targetRotation = targetRotations[result] || [0, 0, 0]
 
         meshRef.current.rotation.x += (targetRotation[0] - meshRef.current.rotation.x) * 0.1
         meshRef.current.rotation.y += (targetRotation[1] - meshRef.current.rotation.y) * 0.1
@@ -70,33 +107,144 @@ function Dice3D({ result, isRolling, onRollComplete }: Dice3DProps) {
     }
   }, [isRolling, result, onRollComplete])
 
+  // Render different geometries based on dice type
+  const renderDiceGeometry = () => {
+    const baseProps = {
+      ref: meshRef,
+      position: [0, 0, 0] as [number, number, number]
+    }
+
+    switch (diceType) {
+      case 'd4':
+        return (
+          <group {...baseProps}>
+            <mesh>
+              <tetrahedronGeometry args={[0.8]} />
+              <meshStandardMaterial color="#f59e0b" roughness={0.1} metalness={0.8} />
+            </mesh>
+            <Text
+              position={[0, 0, 0.9]}
+              fontSize={0.3}
+              color="black"
+              anchorX="center"
+              anchorY="middle"
+            >
+              {result}
+            </Text>
+          </group>
+        )
+
+      case 'd8':
+        return (
+          <group {...baseProps}>
+            <mesh>
+              <octahedronGeometry args={[0.8]} />
+              <meshStandardMaterial color="#f59e0b" roughness={0.1} metalness={0.8} />
+            </mesh>
+            <Text
+              position={[0, 0, 0.9]}
+              fontSize={0.3}
+              color="black"
+              anchorX="center"
+              anchorY="middle"
+            >
+              {result}
+            </Text>
+          </group>
+        )
+
+      case 'd10':
+        // Pentagonal trapezohedron (d10 shape)
+        return (
+          <group {...baseProps}>
+            <mesh>
+              <dodecahedronGeometry args={[0.8]} />
+              <meshStandardMaterial color="#f59e0b" roughness={0.1} metalness={0.8} />
+            </mesh>
+            <Text
+              position={[0, 0, 0.9]}
+              fontSize={0.3}
+              color="black"
+              anchorX="center"
+              anchorY="middle"
+            >
+              {result}
+            </Text>
+          </group>
+        )
+
+      case 'd12':
+        return (
+          <group {...baseProps}>
+            <mesh>
+              <dodecahedronGeometry args={[0.8]} />
+              <meshStandardMaterial color="#f59e0b" roughness={0.1} metalness={0.8} />
+            </mesh>
+            <Text
+              position={[0, 0, 0.9]}
+              fontSize={0.3}
+              color="black"
+              anchorX="center"
+              anchorY="middle"
+            >
+              {result}
+            </Text>
+          </group>
+        )
+
+      case 'd20':
+        return (
+          <group {...baseProps}>
+            <mesh>
+              <icosahedronGeometry args={[0.8]} />
+              <meshStandardMaterial color="#f59e0b" roughness={0.1} metalness={0.8} />
+            </mesh>
+            <Text
+              position={[0, 0, 0.9]}
+              fontSize={0.3}
+              color="black"
+              anchorX="center"
+              anchorY="middle"
+            >
+              {result}
+            </Text>
+          </group>
+        )
+
+      default: // d6
+        return (
+          <Box {...baseProps} args={[1, 1, 1]}>
+            <meshStandardMaterial color="#f59e0b" roughness={0.1} metalness={0.8} />
+
+            {/* Dice dots */}
+            <Text
+              position={[0, 0, 0.51]}
+              fontSize={0.3}
+              color="black"
+              anchorX="center"
+              anchorY="middle"
+            >
+              {result}
+            </Text>
+
+            {/* Side dots for visual effect */}
+            <Text
+              position={[0, 0, -0.51]}
+              fontSize={0.2}
+              color="black"
+              anchorX="center"
+              anchorY="middle"
+            >
+              ⚅
+            </Text>
+          </Box>
+        )
+    }
+  }
+
   return (
     <Float speed={2} rotationIntensity={isRolling ? 2 : 0.5} floatIntensity={isRolling ? 1 : 0.3}>
-      <Box ref={meshRef} args={[1, 1, 1]} position={[0, 0, 0]}>
-        <meshStandardMaterial color="#f59e0b" roughness={0.1} metalness={0.8} />
-
-        {/* Dice dots */}
-        <Text
-          position={[0, 0, 0.51]}
-          fontSize={0.3}
-          color="black"
-          anchorX="center"
-          anchorY="middle"
-        >
-          {result}
-        </Text>
-
-        {/* Side dots for visual effect */}
-        <Text
-          position={[0, 0, -0.51]}
-          fontSize={0.2}
-          color="black"
-          anchorX="center"
-          anchorY="middle"
-        >
-          ⚅
-        </Text>
-      </Box>
+      {renderDiceGeometry()}
     </Float>
   )
 }

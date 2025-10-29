@@ -9,7 +9,7 @@ import { FavoritesGrid } from "./favorites-grid"
 import { ListeningProgress } from "./listening-progress"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
-import { Search, LogOut, Crown, CreditCard, LogIn, User } from "lucide-react"
+import { Search, LogOut, Crown, CreditCard, LogIn, User, Users } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -341,6 +341,38 @@ export function LibraryDashboard({ user }: LibraryDashboardProps) {
               className="pl-10 bg-background/50"
             />
           </div>
+
+          {/* Multiplayer Banner */}
+          {isAuthenticated && (
+            <div className="mt-4 mb-4">
+              <div className="bg-gradient-to-r from-purple-50 via-blue-50 to-indigo-50 dark:from-purple-950/20 dark:via-blue-950/20 dark:to-indigo-950/20 rounded-lg border border-purple-200 dark:border-purple-800 p-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center">
+                      <Users className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-purple-900 dark:text-purple-100">
+                        Join Group Adventures
+                      </h3>
+                      <p className="text-sm text-purple-700 dark:text-purple-300">
+                        Experience democratic storytelling with friends
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => router.push('/multiplayer')}
+                    variant="outline"
+                    className="border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-600 dark:text-purple-300 dark:hover:bg-purple-950/30"
+                    size="sm"
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    Multiplayer
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {!isAuthenticated && !isLoading && (
             <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">

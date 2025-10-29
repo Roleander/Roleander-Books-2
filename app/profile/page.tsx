@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ArrowLeft, Crown, User, Calendar, CreditCard, Settings, Palette, Shield, LogOut, Key, Trophy, Mic } from "lucide-react"
+import { ArrowLeft, Crown, User, Calendar, CreditCard, Settings, Palette, Shield, LogOut, Key, Trophy, Mic, Users } from "lucide-react"
 import { CharacterSheet } from "@/components/character/character-sheet"
 import { NotificationManager } from "@/components/ui/item-notification"
 import { VoiceNavigation, useVoiceNavigation } from "@/components/ui/voice-navigation"
@@ -266,6 +266,37 @@ export default function ProfilePage() {
           </div>
 
           <div className="grid gap-6">
+            {/* Multiplayer Banner */}
+            <div className="w-full">
+              <Card className="bg-gradient-to-r from-purple-50 via-blue-50 to-indigo-50 border-purple-200 dark:from-purple-950/20 dark:via-blue-950/20 dark:to-indigo-950/20 dark:border-purple-800">
+                <CardContent className="p-6">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center">
+                        <Users className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100">
+                          Experience Democratic Storytelling
+                        </h3>
+                        <p className="text-sm text-purple-700 dark:text-purple-300">
+                          Join friends for collaborative audiobook adventures with group voting and voice chat
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => router.push('/multiplayer')}
+                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                      size="lg"
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      Enter Multiplayer
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Character Sheet Section */}
             <div className="w-full">
               <CharacterSheet userId={user.id} />

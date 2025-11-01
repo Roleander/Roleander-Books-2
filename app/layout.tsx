@@ -1,18 +1,20 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Crimson_Text, Inter } from "next/font/google"
+import { Analytics } from "@vercel/analytics/next"
+import { Suspense } from "react"
 import "./globals.css"
 
 const crimsonText = Crimson_Text({
   subsets: ["latin"],
   weight: ["400", "600", "700"],
-  variable: "--font-serif",
+  variable: "--font-crimson",
   display: "swap",
 })
 
 const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-inter",
   display: "swap",
 })
 
@@ -29,7 +31,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${crimsonText.variable} ${inter.variable}`}>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        <Suspense fallback={null}>{children}</Suspense>
+        <Analytics />
+      </body>
     </html>
   )
 }

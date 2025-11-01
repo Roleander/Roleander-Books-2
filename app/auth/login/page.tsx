@@ -1,17 +1,15 @@
 "use client"
 
 import type React from "react"
-
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { BrandHeader } from "@/components/ui/brand-header"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
-import { Shield } from "lucide-react"
+import { Shield, Headphones } from "lucide-react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -37,7 +35,7 @@ export default function LoginPage() {
         if (error.message.includes("function") && error.message.includes("has_admin_users")) {
           console.log("[v0] Admin functions don't exist, showing bootstrap")
           setShowBootstrap(true)
-          setError("Please run the database migration first: scripts/012_complete_system_fix.sql")
+          setError("Please run the database migration first")
           return
         }
         throw error
@@ -53,7 +51,7 @@ export default function LoginPage() {
     } catch (error) {
       console.error("[v0] Error checking for admins:", error)
       setShowBootstrap(true)
-      setError("Database connection issue. Please run: scripts/012_complete_system_fix.sql")
+      setError("Database connection issue. Please check your Supabase configuration.")
     }
   }
 
@@ -64,13 +62,34 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log("[v0] Attempting login...")
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
-      if (error) throw error
+
+      if (error) {
+        console.log("[v0] Login error:", error)
+        throw error
+      }
+
+      console.log("[v0] Login successful, redirecting to library")
+
+      if (data.user) {
+        localStorage.setItem(
+          "demo_user",
+          JSON.stringify({
+            id: data.user.id,
+            email: data.user.email,
+            role: "user",
+            name: data.user.email?.split("@")[0] || "User",
+          }),
+        )
+      }
+
       router.push("/library")
     } catch (error: unknown) {
+      console.error("[v0] Login failed:", error)
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
       setIsLoading(false)
@@ -112,7 +131,7 @@ export default function LoginPage() {
               bootstrapError.message.includes("function") &&
               bootstrapError.message.includes("bootstrap_first_admin")
             ) {
-              setError("Database migration required. Please run: scripts/013_emergency_system_fix.sql")
+              setError("Database migration required. Please check Supabase setup.")
               return
             }
             throw bootstrapError
@@ -127,7 +146,7 @@ export default function LoginPage() {
           }
         } catch (updateError) {
           console.log("[v0] Database bootstrap failed:", updateError)
-          setError("Database migration required. Please run: scripts/013_emergency_system_fix.sql")
+          setError("Database migration required. Please check Supabase setup.")
         }
       }
     } catch (error: unknown) {
@@ -139,14 +158,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5 flex items-center justify-center p-6">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
-        <BrandHeader fallbackTitle="Roleander Books" subtitle="Bienvenido a tu viaje literario" logoSize="md" />
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl mb-4">
+            <Headphones className="h-8 w-8 text-primary-foreground" />
+          </div>
+          <h1 className="text-2xl font-bold font-serif">AudioStory</h1>
+          <p className="text-muted-foreground mt-2">Welcome back to your audio library</p>
+        </div>
 
-        <Card className="border-border/50 shadow-lg">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-serif">Sign In</CardTitle>
-            <CardDescription>Introduce tus credenciales para acceder a la biblioteca de audiolibros </CardDescription>
+        <Card>
+          <CardHeader>
+            <CardTitle>Sign In</CardTitle>
+            <CardDescription>Introduce tus credenciales para acceder a la biblioteca de audiolibros</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
@@ -155,62 +180,57 @@ export default function LoginPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="your@email.com"
-                  required
+                  placeholder="tu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  required
                   className="h-11"
                 />
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
                   type="password"
-                  required
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  required
                   className="h-11"
                 />
               </div>
-              {error && (
-                <div className="text-red-800 bg-red-50 border border-red-200 p-3 rounded-md text-sm font-medium">
-                  {error}
-                </div>
-              )}
 
-              <Button type="submit" className="w-full h-11 font-medium" disabled={isLoading}>
+              {error && <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">{error}</div>}
+
+              <Button type="submit" className="w-full h-11" disabled={isLoading}>
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>
             </form>
 
             {showBootstrap && (
-              <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-md">
+              <div className="mt-6 p-4 border border-border rounded-lg bg-muted/50">
                 <div className="flex items-center gap-2 mb-2">
-                  <Shield className="h-4 w-4 text-amber-600" />
-                  <span className="text-sm font-medium text-amber-800">First Time Setup</span>
+                  <Shield className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold">First Time Setup</h3>
                 </div>
-                <p className="text-xs text-amber-700 mb-3">
+                <p className="text-sm text-muted-foreground mb-3">
                   No admin users found. You can make yourself an admin to access the admin panel.
                 </p>
                 <Button
                   onClick={handleBootstrapAdmin}
-                  disabled={isBootstrapping || !email || !password}
                   variant="outline"
-                  size="sm"
-                  className="w-full border-amber-300 text-amber-700 hover:bg-amber-100 bg-transparent"
+                  className="w-full bg-transparent"
+                  disabled={isBootstrapping}
                 >
                   {isBootstrapping ? "Setting up admin..." : "Make Me Admin"}
                 </Button>
               </div>
             )}
 
-            <div className="mt-6 text-center text-sm">
-              <span className="text-muted-foreground">Don't have an account? </span>
-              <Link
-                href="/auth/signup"
-                className="text-primary hover:text-primary/80 font-medium underline underline-offset-4"
-              >
+            <div className="mt-6 text-center text-sm text-muted-foreground">
+              Don't have an account?{" "}
+              <Link href="/auth/signup" className="text-primary hover:underline font-medium">
                 Create one here
               </Link>
             </div>

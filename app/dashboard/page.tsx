@@ -7,10 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Play, Clock, BookOpen, TrendingUp, Star, Headphones, Calendar, Award } from "lucide-react"
 import { UserProfileMenu } from "@/components/user-profile-menu"
 import { AuthGuard } from "@/components/auth-guard"
-import { Calendar, Clock, BookOpen, Award, Star, TrendingUp, Edit, Mail, MapPin } from "lucide-react"
 import { audiobooks } from "@/lib/audiobooks"
 
 // Mock user data
@@ -18,23 +17,38 @@ const userData = {
   name: "Alex Johnson",
   email: "alex@example.com",
   avatar: "/user-avatar.jpg",
-  role: "admin",
   memberSince: "January 2024",
-  location: "San Francisco, CA",
-  phone: "+1 (555) 123-4567",
-  bio: "Passionate audiobook listener with a love for science fiction and personal development. Always looking for the next great story to dive into.",
   totalListeningTime: "127h 45m",
   booksCompleted: 12,
   currentStreak: 7,
   favoriteGenre: "Science Fiction",
-  joinDate: "2024-01-15",
 }
 
-const currentlyReading = audiobooks.filter((book) => book.progress > 0 && book.progress < 100)
-const completedBooks = audiobooks.filter((book) => book.progress === 100)
-const favoriteBooks = audiobooks.slice(0, 4)
+const recentActivity = [
+  {
+    id: 1,
+    type: "completed",
+    book: audiobooks[1],
+    timestamp: "2 hours ago",
+  },
+  {
+    id: 2,
+    type: "started",
+    book: audiobooks[0],
+    timestamp: "1 day ago",
+  },
+  {
+    id: 3,
+    type: "bookmarked",
+    book: audiobooks[2],
+    timestamp: "2 days ago",
+  },
+]
 
-export default function ProfilePage() {
+const currentlyReading = audiobooks.filter((book) => book.progress > 0 && book.progress < 100)
+const recommendations = audiobooks.slice(0, 3)
+
+export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("overview")
 
   return (
@@ -47,14 +61,11 @@ export default function ProfilePage() {
                 SoundBook
               </Link>
               <nav className="hidden md:flex items-center space-x-6">
-                <Link href="/dashboard" className="text-muted-foreground hover:text-foreground">
+                <Link href="/dashboard" className="text-primary font-medium">
                   Dashboard
                 </Link>
                 <Link href="/library" className="text-muted-foreground hover:text-foreground">
                   Library
-                </Link>
-                <Link href="/profile" className="text-primary font-medium">
-                  Profile
                 </Link>
                 <UserProfileMenu />
               </nav>
@@ -63,56 +74,20 @@ export default function ProfilePage() {
         </header>
 
         <div className="container mx-auto px-4 py-8">
-          {/* Profile Header */}
           <div className="mb-8">
-            <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6 mb-6">
-              <Avatar className="w-24 h-24">
-                <AvatarImage src={userData.avatar || "/placeholder.svg"} alt={userData.name} />
-                <AvatarFallback className="text-2xl">
-                  {userData.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </AvatarFallback>
-              </Avatar>
-
-              <div className="flex-1">
-                <div className="flex items-center space-x-3 mb-2">
-                  <h1 className="text-3xl font-bold">{userData.name}</h1>
-                  {userData.role === "admin" && (
-                    <Badge variant="secondary" className="text-sm">
-                      Admin
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-muted-foreground mb-3">{userData.bio}</p>
-
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center space-x-1">
-                    <Mail className="h-4 w-4" />
-                    <span>{userData.email}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <MapPin className="h-4 w-4" />
-                    <span>{userData.location}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>Joined {userData.memberSince}</span>
-                  </div>
-                </div>
+            <div className="flex items-center space-x-4 mb-6">
+              <img
+                src={userData.avatar || "/placeholder.svg?height=80&width=80"}
+                alt={userData.name}
+                className="w-20 h-20 rounded-full border-2 border-primary/20"
+              />
+              <div>
+                <h1 className="text-3xl font-bold">Welcome back, {userData.name}!</h1>
+                <p className="text-muted-foreground">Member since {userData.memberSince}</p>
               </div>
-
-              <Button asChild>
-                <Link href="/profile/settings">
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Profile
-                </Link>
-              </Button>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               <Card>
                 <CardContent className="p-4 text-center">
                   <Clock className="h-8 w-8 text-primary mx-auto mb-2" />
@@ -147,11 +122,10 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Profile Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="library">My Library</TabsTrigger>
+              <TabsTrigger value="progress">Progress</TabsTrigger>
               <TabsTrigger value="activity">Activity</TabsTrigger>
             </TabsList>
 
@@ -160,10 +134,10 @@ export default function ProfilePage() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
-                      <BookOpen className="h-5 w-5" />
-                      <span>Currently Reading</span>
+                      <Headphones className="h-5 w-5" />
+                      <span>Continue Listening</span>
                     </CardTitle>
-                    <CardDescription>Books in progress</CardDescription>
+                    <CardDescription>Pick up where you left off</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {currentlyReading.map((book) => (
@@ -179,6 +153,11 @@ export default function ProfilePage() {
                           <Progress value={book.progress} className="mt-2" />
                           <p className="text-xs text-muted-foreground mt-1">{book.progress}% complete</p>
                         </div>
+                        <Button size="sm" asChild>
+                          <Link href={`/player/${book.id}`}>
+                            <Play className="h-4 w-4" />
+                          </Link>
+                        </Button>
                       </div>
                     ))}
                   </CardContent>
@@ -187,13 +166,13 @@ export default function ProfilePage() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
-                      <Star className="h-5 w-5" />
-                      <span>Favorite Books</span>
+                      <TrendingUp className="h-5 w-5" />
+                      <span>Recommended for You</span>
                     </CardTitle>
-                    <CardDescription>Your top-rated audiobooks</CardDescription>
+                    <CardDescription>Based on your listening history</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {favoriteBooks.map((book) => (
+                    {recommendations.map((book) => (
                       <div key={book.id} className="flex items-center space-x-4">
                         <img
                           src={book.cover || "/placeholder.svg"}
@@ -203,11 +182,21 @@ export default function ProfilePage() {
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium truncate">{book.title}</h4>
                           <p className="text-sm text-muted-foreground truncate">by {book.author}</p>
-                          <div className="flex items-center space-x-1 mt-1">
-                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                            <span className="text-xs">{book.rating}</span>
+                          <div className="flex items-center space-x-2 mt-1">
+                            <div className="flex items-center space-x-1">
+                              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                              <span className="text-xs">{book.rating}</span>
+                            </div>
+                            <Badge variant="secondary" className="text-xs">
+                              {book.genre}
+                            </Badge>
                           </div>
                         </div>
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={`/player/${book.id}`}>
+                            <Play className="h-4 w-4" />
+                          </Link>
+                        </Button>
                       </div>
                     ))}
                   </CardContent>
@@ -215,38 +204,14 @@ export default function ProfilePage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="library" className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Completed Books ({completedBooks.length})</CardTitle>
-                    <CardDescription>Books you've finished</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-4 gap-2">
-                      {completedBooks.slice(0, 8).map((book) => (
-                        <img
-                          key={book.id}
-                          src={book.cover || "/placeholder.svg"}
-                          alt={book.title}
-                          className="w-full aspect-[3/4] rounded object-cover"
-                        />
-                      ))}
-                    </div>
-                    {completedBooks.length > 8 && (
-                      <Button variant="outline" className="w-full mt-4 bg-transparent" asChild>
-                        <Link href="/library?filter=completed">View All Completed Books</Link>
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Reading Progress</CardTitle>
-                    <CardDescription>Your current reading journey</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
+            <TabsContent value="progress" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Reading Progress</CardTitle>
+                  <CardDescription>Track your audiobook journey</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
                     {currentlyReading.map((book) => (
                       <div key={book.id} className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -257,8 +222,8 @@ export default function ProfilePage() {
                               className="w-10 h-10 rounded object-cover"
                             />
                             <div>
-                              <h4 className="font-medium text-sm">{book.title}</h4>
-                              <p className="text-xs text-muted-foreground">by {book.author}</p>
+                              <h4 className="font-medium">{book.title}</h4>
+                              <p className="text-sm text-muted-foreground">by {book.author}</p>
                             </div>
                           </div>
                           <div className="text-right">
@@ -269,51 +234,43 @@ export default function ProfilePage() {
                         <Progress value={book.progress} className="h-2" />
                       </div>
                     ))}
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="activity" className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
-                    <TrendingUp className="h-5 w-5" />
+                    <Calendar className="h-5 w-5" />
                     <span>Recent Activity</span>
                   </CardTitle>
                   <CardDescription>Your latest audiobook interactions</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-4 p-3 rounded-lg bg-muted/50">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <div className="flex-1">
-                        <p className="text-sm">
-                          <span className="font-medium">Completed</span> "Atomic Habits" by James Clear
-                        </p>
-                        <p className="text-xs text-muted-foreground">2 hours ago</p>
+                    {recentActivity.map((activity) => (
+                      <div key={activity.id} className="flex items-center space-x-4 p-3 rounded-lg bg-muted/50">
+                        <img
+                          src={activity.book.cover || "/placeholder.svg"}
+                          alt={activity.book.title}
+                          className="w-12 h-12 rounded object-cover"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium">
+                              {activity.type === "completed" && "Completed"}
+                              {activity.type === "started" && "Started"}
+                              {activity.type === "bookmarked" && "Bookmarked"}
+                            </span>
+                            <span className="text-muted-foreground">{activity.book.title}</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">by {activity.book.author}</p>
+                        </div>
+                        <div className="text-sm text-muted-foreground">{activity.timestamp}</div>
                       </div>
-                    </div>
-
-                    <div className="flex items-center space-x-4 p-3 rounded-lg bg-muted/50">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <div className="flex-1">
-                        <p className="text-sm">
-                          <span className="font-medium">Started</span> "The Midnight Library" by Matt Haig
-                        </p>
-                        <p className="text-xs text-muted-foreground">1 day ago</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-4 p-3 rounded-lg bg-muted/50">
-                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                      <div className="flex-1">
-                        <p className="text-sm">
-                          <span className="font-medium">Bookmarked</span> "Project Hail Mary" by Andy Weir
-                        </p>
-                        <p className="text-xs text-muted-foreground">2 days ago</p>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
